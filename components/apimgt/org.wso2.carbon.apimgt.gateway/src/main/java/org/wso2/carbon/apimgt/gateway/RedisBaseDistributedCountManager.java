@@ -25,7 +25,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.Transaction;
-import org.wso2.carbon.apimgt.gateway.throttling.util.ThrottleUtils;
+import redis.clients.jedis.exceptions.JedisException;
 import org.wso2.carbon.apimgt.impl.dto.RedisConfig;
 
 /**
@@ -144,6 +144,9 @@ public class RedisBaseDistributedCountManager implements DistributedCounterManag
                 transaction.del(key);
                 transaction.exec();
             }
+        } catch (JedisException e) {
+            // Non-critical cleanup; key expires via TTL if skipped.
+            log.warn("Redis error in removeCounter for key: " + key + ". Key will expire via TTL.", e);
         } finally {
             if (log.isTraceEnabled()) {
                 log.trace("Time Taken to removeCounter key" + key + ":" +(System.currentTimeMillis() - startTime));
@@ -369,6 +372,9 @@ public class RedisBaseDistributedCountManager implements DistributedCounterManag
                 transaction.del(key);
                 transaction.exec();
             }
+        } catch (JedisException e) {
+            // Non-critical cleanup; key expires via TTL if skipped.
+            log.warn("Redis error in removeTimestamp for key: " + key + ". Key will expire via TTL.", e);
         } finally {
             if (log.isTraceEnabled()) {
                 log.trace("Time Taken to removeTimestamp key " + key + (System.currentTimeMillis() - startTime));
@@ -422,6 +428,10 @@ public class RedisBaseDistributedCountManager implements DistributedCounterManag
                 }
                 return ttl;
             }
+        } catch (JedisException e) {
+            // Return -2 (key-not-found sentinel) as a safe fallback.
+            log.error("Redis error in getTtl for key: " + key + ". Returning -2.", e);
+            return -2;
         } finally {
             if (log.isTraceEnabled()) {
                 log.trace("Time Taken to perform Redis getTtl operation:" + (System.currentTimeMillis() - startTime));
@@ -448,6 +458,10 @@ public class RedisBaseDistributedCountManager implements DistributedCounterManag
                 log.trace("setLock with key" + key + "with value " + value);
                 return responseCode;
             }
+        } catch (JedisException e) {
+            // Return 0 (lock not acquired) as a safe fallback.
+            log.error("Redis error in setLock for key: " + key + ". Returning 0.", e);
+            return 0;
         } finally {
             if (log.isTraceEnabled()) {
                 log.trace("Time Taken to setLock :" + (System.currentTimeMillis() - startTime));
@@ -520,6 +534,9 @@ public class RedisBaseDistributedCountManager implements DistributedCounterManag
                 transaction.del(key);
                 transaction.exec();
             }
+        } catch (JedisException e) {
+            // Non-critical; lock expires naturally.
+            log.warn("Redis error in removeLock for key: " + key + ". Lock will expire naturally.", e);
         } finally {
             if (log.isTraceEnabled()) {
                 log.trace("Time Taken to remove lock :" + (System.currentTimeMillis() - startTime));
