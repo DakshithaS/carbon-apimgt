@@ -7764,6 +7764,10 @@ components:
           type: boolean
           example: true
           default: true
+        enableProvisionedAppValidation:
+          type: boolean
+          example: true
+          default: true
         enableMapOAuthConsumerApps:
           type: boolean
           example: false
