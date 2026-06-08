@@ -25960,6 +25960,9 @@ public class ApiMgtDAO {
                         if (policy == null) {
                             continue;
                         }
+                        if (StringUtils.isBlank(policy.getDirection())) {
+                            policy.setDirection(APIConstants.OPERATION_SEQUENCE_TYPE_HUB);
+                        }
                         handlePolicyCloning(policy, apiUUID, tenantDomain, connection, updatedPoliciesMap,
                                 usedClonedPolicies, toBeClonedPolicyDetails);
                         Gson gson = new Gson();
@@ -26022,6 +26025,9 @@ public class ApiMgtDAO {
                 for (OperationPolicy policy : apiHubPolicies) {
                     if (policy == null) {
                         continue;
+                    }
+                    if (StringUtils.isBlank(policy.getDirection())) {
+                        policy.setDirection(APIConstants.OPERATION_SEQUENCE_TYPE_HUB);
                     }
                     handlePolicyCloning(policy, apiUUID, tenantDomain, connection, updatedPoliciesMap,
                             usedClonedPolicies, toBeClonedPolicyDetails);
@@ -26341,13 +26347,14 @@ public class ApiMgtDAO {
 
     private String resolvePolicyIdentifier(OperationPolicy policy) throws APIManagementException {
         String policyIdentifier = policy.getPolicyId();
-        if (StringUtils.isBlank(policyIdentifier)) {
+        if (StringUtils.isBlank(policyIdentifier)
+                && APIConstants.OPERATION_SEQUENCE_TYPE_HUB.equalsIgnoreCase(policy.getDirection())) {
             String policyName = StringUtils.trimToEmpty(policy.getPolicyName());
             if (StringUtils.isBlank(policyName) || "null".equalsIgnoreCase(policyName)) {
                 throw new APIManagementException("Operation policy name cannot be empty when policyId is missing.");
             }
             if (log.isDebugEnabled()) {
-                log.debug("Policy ID is blank for policy: " + policyName
+                log.debug("Policy ID is blank for hub policy: " + policyName
                         + ". Using name::version format.");
             }
             // Platform Gateway external/hub policies can come without a policyId.
@@ -26604,6 +26611,9 @@ public class ApiMgtDAO {
                         if (policy == null) {
                             continue;
                         }
+                        if (StringUtils.isBlank(policy.getDirection())) {
+                            policy.setDirection(APIConstants.OPERATION_SEQUENCE_TYPE_HUB);
+                        }
                         handlePolicyCloningWhenRevisioning(policy, apiRevision.getApiUUID(),
                                 apiRevision.getRevisionUUID(), clonedPolicyMap, toBeClonedPolicyDetails);
                         Gson gson = new Gson();
@@ -26662,6 +26672,9 @@ public class ApiMgtDAO {
             for (OperationPolicy policy : apiHubPolicies) {
                 if (policy == null) {
                     continue;
+                }
+                if (StringUtils.isBlank(policy.getDirection())) {
+                    policy.setDirection(APIConstants.OPERATION_SEQUENCE_TYPE_HUB);
                 }
                 handlePolicyCloningWhenRevisioning(policy, apiRevision.getApiUUID(), apiRevision.getRevisionUUID(),
                         clonedPolicyMap, toBeClonedPolicyDetails);
