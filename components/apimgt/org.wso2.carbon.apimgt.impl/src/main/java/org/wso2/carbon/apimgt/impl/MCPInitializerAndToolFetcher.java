@@ -56,6 +56,15 @@ public class MCPInitializerAndToolFetcher {
     private final boolean secure;
     private final boolean appendMCPPath;
 
+    /**
+     * Creates a new fetcher with full configuration.
+     *
+     * @param mcpServerURL  base URL of the MCP server
+     * @param header        name of the authentication header
+     * @param value         value of the authentication header
+     * @param isSecure      {@code true} to attach the auth header on every request
+     * @param appendMCPPath {@code true} to append {@code /mcp} to the server URL before each request
+     */
     public MCPInitializerAndToolFetcher(String mcpServerURL, String header, String value,
                                         boolean isSecure, boolean appendMCPPath) {
 
@@ -66,6 +75,14 @@ public class MCPInitializerAndToolFetcher {
         this.appendMCPPath = appendMCPPath;
     }
 
+    /**
+     * Convenience constructor that defaults {@code appendMCPPath} to {@code true}.
+     *
+     * @param mcpServerURL base URL of the MCP server
+     * @param header       name of the authentication header
+     * @param value        value of the authentication header
+     * @param isSecure     {@code true} to attach the auth header on every request
+     */
     public MCPInitializerAndToolFetcher(String mcpServerURL, String header, String value, boolean isSecure) {
 
         this(mcpServerURL, header, value, isSecure, true);
