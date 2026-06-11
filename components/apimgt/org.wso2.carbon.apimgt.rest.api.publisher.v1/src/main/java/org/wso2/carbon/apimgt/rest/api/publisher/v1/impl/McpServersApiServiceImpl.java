@@ -61,6 +61,7 @@ import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.governance.api.model.APIMGovernableState;
 import org.wso2.carbon.apimgt.governance.api.model.ArtifactType;
 import org.wso2.carbon.apimgt.impl.APIConstants;
+import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.dto.WorkflowDTO;
 import org.wso2.carbon.apimgt.impl.workflow.WorkflowConstants;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.common.mappings.APIDTOTypeWrapper;
@@ -2683,8 +2684,18 @@ public class McpServersApiServiceImpl implements McpServersApiService {
             securityInfo.setValue(value);
         }
 
+        Boolean appendMCPPathValue = dto.isAppendMCPPath();
+        boolean appendMCPPath;
+        if (appendMCPPathValue != null) {
+            appendMCPPath = appendMCPPathValue;
+        } else {
+            appendMCPPath = ServiceReferenceHolder.getInstance()
+                    .getAPIManagerConfigurationService()
+                    .getAPIManagerConfiguration()
+                    .isMCPPathAppendEnabled();
+        }
         MCPServerValidationResponseDTO result =
-                PublisherCommonUtils.validateMCPServer(serverUrl, securityInfo, true, organization);
+                PublisherCommonUtils.validateMCPServer(serverUrl, securityInfo, true, appendMCPPath, organization);
 
         return Response.ok(result).build();
     }

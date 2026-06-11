@@ -12346,6 +12346,11 @@ components:
           example: false
           default: false
           readOnly: true
+        appendMCPPath:
+          type: boolean
+          description: |
+            Whether to append /mcp to the backend endpoint URL when routing requests.
+          default: true
       x-scopes:
         - apim:mcp_server_create
         - apim:mcp_server_import_export
@@ -14819,8 +14824,11 @@ components:
           example: https://example.com/mcp
         securityInfo:
           $ref: '#/components/schemas/SecurityInfo'
-
-    SecurityInfo:
+        appendMCPPath:
+          type: boolean
+          description: |
+            Whether to append /mcp when validating the MCP server endpoint.
+            Defaults to the server-wide MCPPathAppendEnabled setting if omitted.
       title: MCP Server Security Information
       type: object
       description: Optional security headers to use during URL validation.
@@ -15253,6 +15261,11 @@ components:
         isMCPSupportEnabled:
           type: boolean
           description: This indicates whether the MCP support is enabled or not.
+          default: true
+        mcpPathAppendEnabled:
+          type: boolean
+          description: |
+            Whether the MCP path-append feature is enabled server-wide.
           default: true
         customProperties:
             type: array
