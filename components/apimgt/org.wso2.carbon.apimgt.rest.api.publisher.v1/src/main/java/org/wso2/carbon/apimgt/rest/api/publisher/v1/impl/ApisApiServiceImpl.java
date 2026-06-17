@@ -1452,6 +1452,8 @@ public class ApisApiServiceImpl implements ApisApiService {
         } catch (URISyntaxException e) {
             RestApiUtil.handleInternalServerError(
                     "Error while generating the resource location URI for alias '" + alias + "'", e, log);
+        } finally {
+            IOUtils.closeQuietly(certificateInputStream);
         }
         return null;
     }
