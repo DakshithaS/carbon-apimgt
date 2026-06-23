@@ -183,6 +183,7 @@ public class APIManagerConfiguration {
     private boolean isTransactionCounterEnabled;
     private static boolean isMCPSupportEnabled = true;
     private static boolean mcpPathAppendEnabled = true;
+    private static boolean isMCPEnforceAuthForAllMethods = false;
     private static String devportalMode = APIConstants.DEVPORTAL_MODE_HYBRID;
     private static volatile boolean isRuntimeReadOnly = false;
 
@@ -3192,6 +3193,13 @@ public class APIManagerConfiguration {
                 && StringUtils.isNotEmpty(mcpPathAppendElement.getText())) {
             mcpPathAppendEnabled = Boolean.parseBoolean(mcpPathAppendElement.getText().trim());
         }
+
+        OMElement mcpEnforceAuthForAllMethodsElement =
+                omElement.getFirstChildWithName(new QName(APIConstants.AI.MCP_ENFORCE_AUTH_FOR_ALL));
+        if (mcpEnforceAuthForAllMethodsElement != null
+                && StringUtils.isNotEmpty(mcpEnforceAuthForAllMethodsElement.getText())) {
+            isMCPEnforceAuthForAllMethods = Boolean.parseBoolean(mcpEnforceAuthForAllMethodsElement.getText().trim());
+        }
     }
 
     /**
@@ -3213,6 +3221,17 @@ public class APIManagerConfiguration {
     public boolean isMCPPathAppendEnabled() {
 
         return mcpPathAppendEnabled;
+    }
+
+    /*
+     * Returns whether the Gateway should enforce authentication for all MCP methods.
+     * Default is false to preserve backward compatibility with existing MCP servers.
+     *
+     * @return true if authentication should be enforced for all methods, false otherwise.
+     */
+    public boolean isMCPEnforceAuthForAllMethods() {
+
+        return isMCPEnforceAuthForAllMethods;
     }
 
     /**
