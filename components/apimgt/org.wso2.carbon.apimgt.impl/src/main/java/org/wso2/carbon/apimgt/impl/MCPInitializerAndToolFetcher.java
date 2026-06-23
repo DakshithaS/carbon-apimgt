@@ -54,13 +54,38 @@ public class MCPInitializerAndToolFetcher {
     private final String authHeaderName;
     private final String authHeaderValue;
     private final boolean secure;
+    private final boolean appendMCPPath;
 
-    public MCPInitializerAndToolFetcher(String mcpServerURL, String header, String value, boolean isSecure) {
+    /**
+     * Creates a new fetcher with full configuration.
+     *
+     * @param mcpServerURL  base URL of the MCP server
+     * @param header        name of the authentication header
+     * @param value         value of the authentication header
+     * @param isSecure      {@code true} to attach the auth header on every request
+     * @param appendMCPPath {@code true} to append {@code /mcp} to the server URL before each request
+     */
+    public MCPInitializerAndToolFetcher(String mcpServerURL, String header, String value,
+                                        boolean isSecure, boolean appendMCPPath) {
 
         this.mcpServerUrl = mcpServerURL;
         this.authHeaderName = header;
         this.authHeaderValue = value;
         this.secure = isSecure;
+        this.appendMCPPath = appendMCPPath;
+    }
+
+    /**
+     * Convenience constructor that defaults {@code appendMCPPath} to {@code true}.
+     *
+     * @param mcpServerURL base URL of the MCP server
+     * @param header       name of the authentication header
+     * @param value        value of the authentication header
+     * @param isSecure     {@code true} to attach the auth header on every request
+     */
+    public MCPInitializerAndToolFetcher(String mcpServerURL, String header, String value, boolean isSecure) {
+
+        this(mcpServerURL, header, value, isSecure, true);
     }
 
     /**
@@ -159,9 +184,11 @@ public class MCPInitializerAndToolFetcher {
     private JSONObject sendJsonRpcRequest(CloseableHttpClient httpClient, String targetUrl, JSONObject jsonBody,
                                           String sessionId) throws Exception {
 
-        targetUrl = targetUrl.endsWith("/") ?
-                targetUrl + APIConstants.MCP.MCP_RESOURCES_MCP_WITHOUT_TRAILING_SLASH :
-                targetUrl + APIConstants.MCP.MCP_RESOURCES_MCP;
+        if (appendMCPPath) {
+            targetUrl = targetUrl.endsWith("/") ?
+                    targetUrl + APIConstants.MCP.MCP_RESOURCES_MCP_WITHOUT_TRAILING_SLASH :
+                    targetUrl + APIConstants.MCP.MCP_RESOURCES_MCP;
+        }
         HttpPost request = new HttpPost(targetUrl);
         request.setHeader(APIConstants.MCP.HEADER_CONTENT_TYPE,
                 ContentType.APPLICATION_JSON.withCharset(StandardCharsets.UTF_8).toString());

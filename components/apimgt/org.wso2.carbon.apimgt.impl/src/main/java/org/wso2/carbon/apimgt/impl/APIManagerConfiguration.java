@@ -182,6 +182,7 @@ public class APIManagerConfiguration {
     private String hashingAlgorithm = SHA_256;
     private boolean isTransactionCounterEnabled;
     private static boolean isMCPSupportEnabled = true;
+    private static boolean mcpPathAppendEnabled = true;
     private static String devportalMode = APIConstants.DEVPORTAL_MODE_HYBRID;
     private static volatile boolean isRuntimeReadOnly = false;
 
@@ -3184,6 +3185,13 @@ public class APIManagerConfiguration {
             isMCPSupportEnabled = Boolean.parseBoolean(mcpServerConfigElement.getText().trim());
             System.setProperty(APIConstants.ENABLE_MCP_SUPPORT, Boolean.toString(isMCPSupportEnabled));
         }
+
+        OMElement mcpPathAppendElement =
+                omElement.getFirstChildWithName(new QName(APIConstants.MCP.MCP_PATH_APPEND_ENABLED));
+        if (mcpPathAppendElement != null
+                && StringUtils.isNotEmpty(mcpPathAppendElement.getText())) {
+            mcpPathAppendEnabled = Boolean.parseBoolean(mcpPathAppendElement.getText().trim());
+        }
     }
 
     /**
@@ -3194,6 +3202,17 @@ public class APIManagerConfiguration {
     public boolean isMCPSupportEnabled() {
 
         return isMCPSupportEnabled;
+    }
+
+    /**
+     * Returns whether the /mcp path should be appended to MCP backend endpoint URLs by default.
+     * Default is true to preserve backward compatibility with existing MCP servers.
+     *
+     * @return true if /mcp should be appended (default), false if the endpoint URL is used as-is.
+     */
+    public boolean isMCPPathAppendEnabled() {
+
+        return mcpPathAppendEnabled;
     }
 
     /**

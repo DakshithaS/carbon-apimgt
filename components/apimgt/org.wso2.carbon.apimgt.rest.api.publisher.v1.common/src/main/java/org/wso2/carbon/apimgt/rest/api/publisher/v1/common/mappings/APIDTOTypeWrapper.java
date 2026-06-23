@@ -577,4 +577,20 @@ public class APIDTOTypeWrapper {
             return mcpServerDto.getProtocolVersion();
         }
     }
+
+    public Boolean getAppendMCPPath() {
+
+        if (isAPIDTO()) {
+            return null;
+        } else {
+            return mcpServerDto.isAppendMCPPath();
+        }
+    }
+
+    public void setAppendMCPPath(Boolean appendMCPPath) {
+
+        if (!isAPIDTO()) {
+            mcpServerDto.setAppendMCPPath(appendMCPPath);
+        }
+    }
 }

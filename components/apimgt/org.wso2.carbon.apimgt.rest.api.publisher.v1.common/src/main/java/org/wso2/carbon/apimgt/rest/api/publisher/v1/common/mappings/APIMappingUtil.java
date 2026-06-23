@@ -821,6 +821,8 @@ public class APIMappingUtil {
         if (protocolVersion != null && !protocolVersion.isEmpty()) {
             model.getMetadata().put(APIConstants.MCP.PROTOCOL_VERSION_KEY, protocolVersion);
         }
+        model.getMetadata().put(APIConstants.MCP.MCP_PATH_APPENDED_METADATA_KEY,
+                Boolean.toString(!Boolean.FALSE.equals(dto.isAppendMCPPath())));
         String displayName = dto.getDisplayName();
         if (displayName != null && !displayName.trim().isEmpty()) {
             model.setDisplayName(displayName);
@@ -2516,6 +2518,10 @@ public class APIMappingUtil {
         if (protocolVersion != null) {
             dto.setProtocolVersion(protocolVersion);
         }
+        String mcpPathAppendedValue = (model.getMetadata() != null)
+                ? model.getMetadata().get(APIConstants.MCP.MCP_PATH_APPENDED_METADATA_KEY)
+                : null;
+        dto.setAppendMCPPath((mcpPathAppendedValue == null) || Boolean.parseBoolean(mcpPathAppendedValue));
         return dto;
     }
 
