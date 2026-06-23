@@ -3978,6 +3978,9 @@ public final class APIConstants {
             ACKNOWLEDGED,
             REGISTERED
         }
+
+        public static final String PLATFORM_GATEWAY_RESTAPI_KIND = "RestApi";
+        public static final String PLATFORM_GATEWAY_RESTAPI_STATUS = "deployed";
     }
 
     // Constants related to Synapse Artifact Generator
