@@ -390,6 +390,7 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
         boolean canAccess = false;
         int maxRequest = configuration.getMaximumRequestPerUnitTime();
         boolean localCounterResettingDone = true;
+        boolean syncExecutedSuccessfully = false;
         if (maxRequest != 0) {
             if (callerContext.isThrottleParamSyncingModeSync()) {
                 if (log.isTraceEnabled()) {
@@ -404,6 +405,10 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                             syncThrottleWindowParams(callerContext, true);
                             // add piled items and new request item to shared-counter (increments before allowing the request)
                             syncThrottleCounterParams(callerContext, true, requestContext);
+                            // Track whether the counter sync actually counted this request, so the window-reset
+                            // block below does not double-count it via setLocalCounter(1).
+                            syncExecutedSuccessfully =
+                                    callerContext.getNextTimeWindow() > requestContext.getRequestTime();
                             long timeNow = System.currentTimeMillis();
                             if (log.isDebugEnabled()) {
                                 log.debug("Current time:" + timeNow
@@ -551,7 +556,9 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                         syncModeNotifiedMap.remove(callerContext.getId());
 
                         callerContext.setGlobalCounter(0);// can access the system and this is same as first access
-                        callerContext.setLocalCounter(1);
+                        if (!syncExecutedSuccessfully) {
+                            callerContext.setLocalCounter(1);
+                        }
                         callerContext.setLocalHits(0);
                         callerContext.setFirstAccessTime(requestContext.getRequestTime());
                         callerContext.setNextTimeWindow(requestContext.getRequestTime() + configuration.getUnitTime());
@@ -622,6 +629,7 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                     + ", nextAccessTime = " + callerContext.getNextAccessTime());
         }
 
+        boolean syncExecutedSuccessfully = false;
         if (callerContext.isThrottleParamSyncingModeSync()) {
             if (log.isTraceEnabled()) {
                 log.trace("Going to run throttle param syncing");
@@ -635,6 +643,12 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                         syncThrottleWindowParams(callerContext, true);
                         // add piled items and new request item to shared-counter (increments before allowing the request)
                         syncThrottleCounterParams(callerContext, true, requestContext);
+                        // Only treat the sync as having counted this request if the counter sync actually ran.
+                        // syncThrottleCounterParams is a no-op when the window is already over (nextTimeWindow
+                        // <= requestTime); in that case the guarded setLocalCounter(1) below must still run so the
+                        // request is not dropped from all counters.
+                        syncExecutedSuccessfully =
+                                callerContext.getNextTimeWindow() > requestContext.getRequestTime();
                         long timeNow = System.currentTimeMillis();
 
                         if (log.isDebugEnabled()) {
@@ -689,7 +703,9 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                     //remove previous callercontext instance
                     throttleContext.removeCallerContext(callerContext.getId());
                     callerContext.setGlobalCounter(0);// can access the system   and this is same as first access
-                    callerContext.setLocalCounter(1);
+                    if (!syncExecutedSuccessfully) {
+                        callerContext.setLocalCounter(1);
+                    }
                     callerContext.setLocalHits(0);
                     callerContext.setFirstAccessTime(requestContext.getRequestTime());
                     callerContext.setNextTimeWindow(requestContext.getRequestTime() + configuration.getUnitTime());
@@ -740,7 +756,9 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                     canAccess = true;
                     callerContext.setLocalHits(0);
                     callerContext.setGlobalCounter(0);// can access the system and this is same as first access
-                    callerContext.setLocalCounter(1);
+                    if (!syncExecutedSuccessfully) {
+                        callerContext.setLocalCounter(1);
+                    }
                     callerContext.setFirstAccessTime(requestContext.getRequestTime());
 
                     callerContext.setNextTimeWindow(requestContext.getRequestTime() + configuration.getUnitTime());
@@ -801,11 +819,24 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                             "currentTime has exceeded NextTimeWindow. So setting it to false. So setting it to false.");
                 }
                 callerContext.setIsThrottleParamSyncingModeSync(false);
+                // Only drop the sync notification if it refers to an already-expired window (avoids leaking an
+                // entry per synced callerContextId forever, since syncModeNotifiedMap has no scheduled cleanup
+                // unlike CallerContext, which synapse-core evicts periodically via ThrottleContextCleanupTask).
+                // A peer gateway may have published a notification for a genuinely future window; removing that
+                // unconditionally would make this node ignore the cross-gateway sync signal.
+                String expiredNotifiedNextTimeWindow = syncModeNotifiedMap.get(callerContext.getId());
+                if (expiredNotifiedNextTimeWindow != null
+                        && Long.parseLong(expiredNotifiedNextTimeWindow) < requestContext.getRequestTime()) {
+                    syncModeNotifiedMap.remove(callerContext.getId(), expiredNotifiedNextTimeWindow);
+                }
             }
         } else {
             // if a sync mode switching msg has been received or own node exceeded local quota
-            if (syncModeNotifiedMap.containsKey(callerContext.getId())) {
-                long nextTimeWindowOfSyncMessage = Long.parseLong(syncModeNotifiedMap.get(callerContext.getId()));
+            // read once (get + null-check) to avoid a containsKey()/get() race where a concurrent remove for the
+            // same callerContextId returns null and Long.parseLong(null) throws NumberFormatException
+            String notifiedNextTimeWindow = syncModeNotifiedMap.get(callerContext.getId());
+            if (notifiedNextTimeWindow != null) {
+                long nextTimeWindowOfSyncMessage = Long.parseLong(notifiedNextTimeWindow);
                 // still within the time window that the sync message was sent by some other GW node or mode switched by own node
                 if (nextTimeWindowOfSyncMessage >= requestContext.getRequestTime()) {
                     callerContext.setIsThrottleParamSyncingModeSync(true);
@@ -848,7 +879,7 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                 try {
                     if (log.isTraceEnabled()) {
                         log.trace("When running syncing throttle counter params: Initial Local counter = "
-                                + callerContext.getLocalCounter() + " , globalCounter = " + callerContext.getGlobalCounter()
+                                + localCounter + " , globalCounter = " + callerContext.getGlobalCounter()
                                 + ", distributedCounter = " + SharedParamManager.getDistributedCounter(id)
                                 + ". localCounter increased to " + localCounter);
                     }
@@ -875,7 +906,6 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
                     if (log.isTraceEnabled()) {
                         log.trace("When running syncing throttle counter params: Finally globalCounter increased from "
                                 + oldGlobalCounter + " to " + callerContext.getGlobalCounter());
-                        log.trace("When running syncing throttle counter params: finally local counter reset to 0");
                     }
                 } catch (Exception e) {
                     log.error("Could not sync throttle counter params to distributed storage. Falling back to local processing.", e);
@@ -1034,10 +1064,36 @@ public class HybridThrottleProcessor implements DistributedThrottleProcessor {
         short localQuotaBufferPercentage = Short.parseShort(
                 ThrottleServiceDataHolder.getInstance().getThrottleProperties().getLocalQuotaBufferPercentage());
         long localQuota = (maxRequests - maxRequests * localQuotaBufferPercentage / 100) / gatewayCount;
+        long previousLocalQuota = callerContext.getLocalQuota();
+        callerContext.setLocalQuota(localQuota);
         if (log.isTraceEnabled()) {
             log.trace("Set local quota to " + localQuota + " for " + callerContext.getId() + " in hybrid throttling");
         }
-        callerContext.setLocalQuota(localQuota);
+        if (localQuota < previousLocalQuota
+                && callerContext.getLocalHits() >= localQuota
+                && !callerContext.isThrottleParamSyncingModeSync()) {
+            callerContext.setIsThrottleParamSyncingModeSync(true);
+            if (gatewayId != null && !gatewayId.isEmpty()) {
+                syncModeNotifiedMap.put(callerContext.getId(), String.valueOf(callerContext.getNextTimeWindow()));
+                // Notify peer gateways so they also switch to sync mode for this caller. The reduced local quota
+                // (caused by the increased gateway count) applies cluster-wide, so relying on each peer to trip
+                // its own quota independently can let the cluster overshoot the global limit in the meantime.
+                String message = gatewayId + SYNC_MODE_MSG_PART_DELIMITER + callerContext.getId()
+                        + SYNC_MODE_MSG_PART_DELIMITER + callerContext.getNextTimeWindow();
+                try (Jedis jedis = redisPool.getResource()) {
+                    jedis.publish(WSO2_SYNC_MODE_INIT_CHANNEL, message);
+                } catch (Exception e) {
+                    log.error("Could not publish sync mode message to Redis channel for key: "
+                            + callerContext.getId()
+                            + ". Other gateways will switch to sync mode based on their own local quota.", e);
+                }
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("gatewayCount increased mid-window (newQuota=" + localQuota
+                        + " previousQuota=" + previousLocalQuota + " localHits=" + callerContext.getLocalHits()
+                        + "). Forcing sync mode for callerContext: " + callerContext.getId());
+            }
+        }
     }
 
     @Override
